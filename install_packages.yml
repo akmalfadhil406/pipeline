@@ -1,0 +1,29 @@
+---
+- name: Install packages on RHEL server
+  hosts: rhel_targets
+  become: true
+  gather_facts: true
+
+  vars:
+    packages: "httpd,git,vim"   # overridden by --extra-vars from Jenkins
+
+  tasks:
+    - name: Convert packages string into a list
+      set_fact:
+        package_list: "{{ packages.split(',') | map('trim') | list }}"
+
+    - name: Ensure target is RHEL/CentOS family
+      assert:
+        that:
+          - ansible_facts['os_family'] == "RedHat"
+        fail_msg: "This playbook only supports RHEL/CentOS family systems."
+
+    - name: Install requested packages via dnf
+      dnf:
+        name: "{{ package_list }}"
+        state: present
+      register: install_result
+
+    - name: Show install summary
+      debug:
+        msg: "Installed/verified packages: {{ package_list }}"
