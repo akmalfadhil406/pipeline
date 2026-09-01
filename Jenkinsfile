@@ -50,7 +50,7 @@ ${params.TARGET_HOST} ansible_user=${params.ANSIBLE_USER}
                 sshagent(credentials: [env.SSH_CRED_ID]) {
                     sh """
                         ansible-playbook -i inventory.ini install_packages.yml \
-                          --extra-vars "packages='${params.PACKAGES}'" 'StrictHostKeyChecking=no'
+                          --extra-vars "packages='${params.PACKAGES}'"
                     """
                 }
             }
