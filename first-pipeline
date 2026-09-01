@@ -1,46 +1,72 @@
 pipeline {
     agent any
-    
-    environment {
-        APP_NAME = 'demo-app'
+
+    parameters {
+        string(name: 'TARGET_HOST', defaultValue: '', description: 'RHEL server IP or hostname to configure')
+        string(name: 'PACKAGES', defaultValue: 'httpd,git,vim', description: 'Comma-separated list of packages to install')
+        string(name: 'ANSIBLE_USER', defaultValue: 'ansible', description: 'SSH user Ansible connects as on the target')
     }
-    
+
+    environment {
+        // ID of an "SSH Username with private key" credential in Jenkins,
+        // set up for the ANSIBLE_USER account on the RHEL target.
+        SSH_CRED_ID = 'rhel-ansible-ssh-key'
+    }
+
     stages {
-        stage ('Checkout') {
+
+        stage('Checkout') {
             steps {
-                echo "Checking out code for ${APP_NAME}"
                 checkout scm
             }
         }
-        
-        stage ('Build') {
+
+        stage('Validate Input') {
             steps {
-                echo 'Simulating build step...'
-                sh 'echo "Building application" && sleep 2'
+                script {
+                    if (!params.TARGET_HOST?.trim()) {
+                        error("TARGET_HOST parameter is required.")
+                    }
+                }
             }
         }
-        
-        stage ('Test') {
+
+        stage('Check Ansible Installed') {
             steps {
-                echo 'Running tests...'
-                sh 'echo "ALL tests passed" && sleep 1'
+                sh 'ansible --version'
             }
         }
-        
-        stage ('Deploy') {
+
+        stage('Generate Inventory') {
             steps {
-                echo 'Deploying via Ansible playbook...'
-                sh 'ansible-playbook -i inventory.ini deploy.yml || echo "Ansible not installed - simulated deploy"'
+                writeFile file: 'inventory.ini', text: """[rhel_targets]
+${params.TARGET_HOST} ansible_user=${params.ANSIBLE_USER}
+"""
+            }
+        }
+
+        stage('Run Playbook') {
+            steps {
+                sshagent(credentials: [env.SSH_CRED_ID]) {
+                    sh """
+                        ansible-playbook -i inventory.ini install_packages.yml \
+                          --extra-vars "packages='${params.PACKAGES}'" \
+                          -e ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+                    """
+                }
             }
         }
     }
-    
+
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo "Packages [${params.PACKAGES}] installed successfully on ${params.TARGET_HOST}."
         }
         failure {
-            echo 'Pipeline failed - check logs above.'
+            echo "Pipeline failed. Check the Ansible output above for details."
+        }
+        always {
+            sh 'rm -f inventory.ini'
         }
     }
 }
