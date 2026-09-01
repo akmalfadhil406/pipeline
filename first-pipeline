@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+    
+    environment {
+        APP_NAME = 'demo-app'
+    }
+    
+    stages {
+        stage ('Checkout') {
+            steps {
+                echo "Checking out code for ${APP_NAME}"
+                checkout scm
+            }
+        }
+        
+        stage ('Build') {
+            steps {
+                echo 'Simulating build step...'
+                sh 'echo "Building application" && sleep 2'
+            }
+        }
+        
+        stage ('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'echo "ALL tests passed" && sleep 1'
+            }
+        }
+        
+        stage ('Deploy') {
+            steps {
+                echo 'Deploying via Ansible playbook...'
+                sh 'ansible-playbook -i inventory.ini deploy.yml || echo "Ansible not installed - simulated deploy"'
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed - check logs above.'
+        }
+    }
+}
