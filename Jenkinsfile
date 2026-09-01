@@ -51,7 +51,7 @@ ${params.TARGET_HOST} ansible_user=${params.ANSIBLE_USER}
                     sh """
                         ansible-playbook -i inventory.ini install_packages.yml \
                           --extra-vars "packages='${params.PACKAGES}'" \
-                          -e ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+                          StrictHostKeyChecking=no'
                     """
                 }
             }
